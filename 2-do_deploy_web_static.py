@@ -1,50 +1,77 @@
-#!/usr/bin/python3
-""" module doc
+#!/usr/bin/pythion3
+"""a script to pack static content into a tarball
 """
-from fabric.api import task, local, env, put, run
+from fabric.api import *
+from fabric.operations import put
 from datetime import datetime
 import os
 
 env.hosts = ['54.174.114.135', '100.26.156.69']
 
 
-@task
 def do_pack():
-    """ method doc
-        sudo fab -f 1-pack_web_static.py do_pack
+    """packages all contents from web_static into .tgz archive
     """
-    formatted_dt = datetime.now().strftime('%Y%m%d%H%M%S')
-    mkdir = "mkdir -p versions"
-    path = "versions/web_static_{}.tgz".format(formatted_dt)
-    print("Packing web_static to {}".format(path))
-    if local("{} && tar -cvzf {} web_static".format(mkdir, path)).succeeded:
-        return path
-    return None
+    now = datetime.now().strftime("%Y%m%d%H%M%S")
+    local('mkdir -p versions')
+    result = local('tar -cvf versions/web_static_{}.tgz web_static'
+                   .format(now))
+    if result.failed:
+        return None
+    else:
+        return result
 
 
-@task
 def do_deploy(archive_path):
-    """ method doc
-        fab -f 2-do_deploy_web_static.py do_deploy:
-        archive_path=versions/web_static_20231004201306.tgz
-        -i ~/.ssh/id_rsa -u ubuntu
+    """deploys a static archive to web servers
     """
-    try:
-        if not os.path.exists(archive_path):
-            return False
-        fn_with_ext = os.path.basename(archive_path)
-        fn_no_ext, ext = os.path.splitext(fn_with_ext)
-        dpath = "/data/web_static/releases/"
-        put(archive_path, "/tmp/")
-        run("rm -rf {}{}/".format(dpath, fn_no_ext))
-        run("mkdir -p {}{}/".format(dpath, fn_no_ext))
-        run("tar -xzf /tmp/{} -C {}{}/".format(fn_with_ext, dpath, fn_no_ext))
-        run("rm /tmp/{}".format(fn_with_ext))
-        run("mv {0}{1}/web_static/* {0}{1}/".format(dpath, fn_no_ext))
-        run("rm -rf {}{}/web_static".format(dpath, fn_no_ext))
-        run("rm -rf /data/web_static/current")
-        run("ln -s {}{}/ /data/web_static/current".format(dpath, fn_no_ext))
-        print("New version deployed!")
-        return True
-    except Exception:
+    if not os.path.isfile(archive_path):
+        print('archive file does not exist...')
         return False
+    try:
+        archive = archive_path.split('/')[1]
+        no_ext_archive = archive.split('.')[0]
+    except:
+        print('failed to get archive name from split...')
+        return False
+    uploaded = put(archive_path, '/tmp/')
+    if uploaded.failed:
+        return False
+    res = run('mkdir -p /data/web_static/releases/{}/'.format(no_ext_archive))
+    if res.failed:
+        print('failed to create archive directory for relase...')
+        return False
+    res = run('tar -C /data/web_static/releases/{} -xzf /tmp/{}'.format(
+               no_ext_archive, archive))
+    if res.failed:
+        print('failed to untar archive...')
+        return False
+    res = run('rm /tmp/{}'.format(archive))
+    if res.failed:
+        print('failed to remove archive...')
+        return False
+    res = run('mv /data/web_static/releases/{}/web_static/* \
+               /data/web_static/releases/{}'
+              .format(no_ext_archive, no_ext_archive))
+    if res.failed:
+        print('failed to move extraction to proper directory...')
+        return False
+    res = run('rm -rf /data/web_static/releases/{}/web_static'
+              .format(no_ext_archive))
+    if res.failed:
+        print('failed to remove first copy of extraction after move...')
+        return False
+    # clean up old release and remove it
+    res = run('rm -rf /data/web_static/current')
+    if res.failed:
+        print('failed to clean up old release...')
+        return False
+    res = run('ln -sfn /data/web_static/releases/{} /data/web_static/current'
+              .format(no_ext_archive))
+    if res.failed:
+        print('failed to create link to new release...')
+        return False
+
+    print('\nNew Version Successfuly Deployed!\n')
+
+    return True
