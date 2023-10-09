@@ -1,4 +1,4 @@
-#!/usr/bin/pythion3
+#!/usr/bin/python3
 """a script to pack static content into a tarball
 """
 from fabric.api import *
