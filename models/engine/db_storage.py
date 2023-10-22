@@ -51,6 +51,19 @@ class DBStorage:
             cls_objs[obj.to_dict()["__class__"] + "." + obj.id] = obj
         return cls_objs
 
+    def search(self, cls=None, **kwargs):
+        """  """
+        objs = self.all(cls)
+        for key, obj in objs.items():
+            flag = 0
+            for attr, value in kwargs.items():
+                if getattr(obj, attr) != value:
+                    flag = 1
+                    break
+            if flag == 0:
+                return obj
+        return None
+
     def new(self, obj):
         """a public instance method that adds a
         new object to a pending state of the database transaction"""
@@ -97,3 +110,7 @@ class DBStorage:
             sessionmaker(bind=self.__engine, expire_on_commit=False)
         )
         self.__session = DBStorage.Session()
+
+    def close(self):
+        """call remove() method on self.__session"""
+        self.__session.close()

@@ -19,6 +19,19 @@ class FileStorage:
                 cls_objs[key] = obj
         return cls_objs
 
+    def search(self, cls=None, **kwargs):
+        """  """
+        objs = self.all(cls)
+        for key, obj in objs:
+            flag = 0
+            for attr, value in kwargs:
+                if obj.get(attr) != value:
+                    flag = 1
+                    break
+            if flag == 0:
+                return obj
+        return None
+
     def new(self, obj):
         """Adds new object to storage dictionary"""
         self.all().update({obj.to_dict()["__class__"] + "." + obj.id: obj})
@@ -67,3 +80,7 @@ class FileStorage:
                 if obj == value:
                     del FileStorage.__objects[key]
                     break
+
+    def close(self):
+        """Call reload() method"""
+        self.reload()
