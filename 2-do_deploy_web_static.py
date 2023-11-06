@@ -6,6 +6,8 @@ from datetime import datetime
 import os
 
 env.hosts = ['54.174.114.135', '100.26.156.69']
+env.user = "ubuntu"
+env.key_filename = '~/.ssh/id_rsa'
 
 
 @task
